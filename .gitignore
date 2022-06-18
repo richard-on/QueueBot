@@ -23,6 +23,9 @@ go.work
 /vendor/
 /Godeps/
 
+### Elasticsearch data ###
+/elasticsearch/
+
 
 ### Goland ###
 

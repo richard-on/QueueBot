@@ -1,13 +1,16 @@
-version: "3.5"
+version: "3.7"
 networks:
   bot:
     name: bot
+  elasticsearch:
+    name: elasticsearch
 
 services:
   db:
     container_name: "db"
     networks:
       - bot
+      - elasticsearch
     image: mysql:latest
     restart: always
     ports:
@@ -21,6 +24,7 @@ services:
       - db
     networks:
       - bot
+      - elasticsearch
     build:
       context: .
       dockerfile: ./cmd/queueBot/Dockerfile
@@ -34,3 +38,67 @@ services:
       - PASSWORD
       - DBNAME
       - ADMIN_PASSWORD
+
+  nginx:
+    image: nginx
+    container_name: nginx
+    ports:
+      - "80:80"
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-async-connect: "true"
+        fluentd-address: localhost:24224
+        tag: fluentd
+    networks:
+      - elasticsearch
+
+  fluentd:
+    build: ./fluentd
+    container_name: fluentd
+    volumes:
+      - ./fluentd/conf:/fluentd/etc
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    networks:
+      - elasticsearch
+
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:8.2.2
+    container_name: apm-server
+    command: --strict.perms=false -e
+    volumes:
+      - ./apm_elastic/apm-server.docker.yml:/usr/share/apm-server/apm-server.yml:ro
+    environment:
+      - output.elasticsearch.hosts=["elasticsearch:9200"]
+    ports:
+      - "8200:8200"
+    networks:
+      - elasticsearch
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.2.2
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    volumes:
+      - ./elasticsearch:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - elasticsearch
+
+  kibana:
+    image: kibana:8.2.2
+    container_name: kibana
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    volumes:
+      - ./kibana.yml:/usr/share/kibana/config/kibana.yml
+    ports:
+      - "5601:5601"
+    networks:
+      - elasticsearch

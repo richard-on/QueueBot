@@ -1,0 +1,5 @@
+# kibana.yml
+server.name: kibana
+server.host: "localhost"
+elasticsearch.hosts: [ "http://elasticsearch:9200" ]
+xpack.reporting.capture.browser.chromium.disableSandbox: false
