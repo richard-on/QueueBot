@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"github.com/getsentry/sentry-go"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"os"
@@ -9,7 +10,9 @@ import (
 func Start() {
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("TOKEN"))
 	if err != nil {
-		log.Fatal(err)
+		sentry.CaptureException(err)
+		log.Printf("reported to Sentry: %s", err)
+		return
 	}
 
 	bot.Debug = true
@@ -26,11 +29,15 @@ func Start() {
 
 		msg, err = HandleState(update, msg)
 		if err != nil {
-			log.Fatal(err)
+			sentry.CaptureException(err)
+			log.Printf("reported to Sentry: %s", err)
+			return
 		}
 
 		if _, err = bot.Send(msg); err != nil {
-			log.Panic(err)
+			sentry.CaptureException(err)
+			log.Printf("reported to Sentry: %s", err)
+			return
 		}
 	}
 }
